@@ -2,48 +2,57 @@
 % Elliot Briggs
 % Texas Tech University 
 % Feb. 2012
+%
+% Update by:
+% Changsong Li
+% June. 2020
+%
 % Implementation of a Reed-Solomon decoder using RiBM, Chien search, 
 % and modified Forney's algorithm.
 %
 % RiBM algorithm: (Reformulated inversionless Berlekamp-Massey)
-% see "High-Speed Architectures for Reed亡olomon Decoders" by Dilip V.
+% see "High-Speed Architectures for Reed Solomon Decoders" by Dilip V.
 % Sarwate, and Naresh R. Shanbhag, IEEE Transactions on Very Large Scale
 % Integration (VLSI) Systems, Vol. 9, Iss. 5, pp. 641-655, Aug. 2002
 %--------------------------------------------------------------------------
 close all; clear all;
 %parameters
-n = 15;
-k = 9;
+n = 31;
+k = 19;
+m = 5;
+b = 0; %m0
 %message = 1:9;         % message
-message = ones(1,k)*0;  % message (all zeros is a codeword by definition)
-loc = [1,5,7];          % error locations
-err = [5,2,10];         % error values
+message = [20,4,5,17,22,1,2,28,3,17,6,7,10,31,11,20,4,5,1];  % message (all zeros is a codeword by definition)
+loc = [1,2,3];          % error locations
+err = [5,3,2];         % error values
 %RS parameters
-[g,t] = rsgenpoly(n,k);
-pp = primpoly(4);
-m = log2(n+1);
+pp = primpoly(m);
+[g,t] = rsgenpoly(n,k,pp,b);
+%[g,t] = rsgenpoly(63,61,pp,1);
+%pp = primpoly(6);
+%m = log2(n+1);
 alpha = gf(2, m);
 %generate codeword
 msg = gf(message, m, pp);
-code = rsenc(msg, n, k);
+code = rsenc(msg, n, k, g);
 %inject errors
 reccode = code;
 reccode(loc) = err;
 %creating alpha array
 alpha_tb=gf(zeros(1, 2*t), m);
-for i=1:2*t,
-    alpha_tb(i)=alpha^(2*t-i+1);
-end;
+for i=1:2*t
+    alpha_tb(i)=alpha^(2*t-i+b);
+end
 %--------------------------------------------------------------------------
 %syndrome generation
 %--------------------------------------------------------------------------
 syndrome = gf(zeros(1, 2*t), m, pp);
-for i = 1:n,
+for i = 1:n
     syndrome = syndrome.*alpha_tb +reccode(i);
-end;
+end
 syndrome = double(syndrome.x);
 syndrome = fliplr(syndrome);
-syndrome = gf(syndrome,4,pp);
+syndrome = gf(syndrome,m,pp);
 %--------------------------------------------------------------------------
 % RiBM algorithm (Reformulated inversionless Berlekamp-Massey)
 % This implements the key equation solver portion of the decoder. 
@@ -57,7 +66,7 @@ delta(3*t+1) = 1;
 delta(1:(2*t)) = syndrome;
 theta = delta(1:3*t+1);   
 delta_next = delta;
-for r=1:2*t+1,            
+for r=1:2*t+1
     delta = delta_next;    
     %step1
     delta_next(1:3*t+1) = (gamma*delta(2:3*t+2))-(delta(1)*theta(1:3*t+1));
@@ -67,10 +76,10 @@ for r=1:2*t+1,
         gamma = delta(1);
         k = -k-1;
     else
-        theta = theta;
-        gamma = gamma;
+        %theta = theta;
+        %gamma = gamma;
         k = k+1;
-    end          
+    end
 end
 lamda = delta(t+1:2*t+1);
 omega = delta(1:t);
@@ -80,9 +89,9 @@ omega = delta(1:t);
 %--------------------------------------------------------------------------
 % inverse table
 inverse_tb = gf(zeros(1, t+1), m, pp);
-for i=1:t+1,
+for i=1:t+1
     inverse_tb(i) = alpha^(i-1);
-end;
+end
 lamda_v=gf(0, m, pp);
 accu_tb=gf(ones(1, t+1), m,pp);
 zero = gf(0, m, pp);
@@ -110,23 +119,23 @@ else
 end
 %inverse table
 inverse_tb = gf(zeros(1, t+1), m, pp);
-for i=1:3*t,
-    inverse_tb(i) = alpha^(-i+1);
-end;
+for i=1:3*t
+    inverse_tb(i) = alpha^(-i+1);%alpha^(-i+1)
+end
 lamda_ov=gf(0, m, pp);
 omega_v=gf(0, m, pp);
 accu_tb=gf(ones(1, t+1), m,pp);
 accu_tb1=gf(ones(1, 3*t), m, pp);
 % shift the exponents of omega by 2*t for RiBM (equation 12 in paper)
-omega = [zeros(1,2*t),omega]; 
-for i=1:n,
+omega = [zeros(1,2*t),omega];
+for i=1:n
     lamda_ov=lamda(2:2:odd+1)*accu_tb(2:2:odd+1)';
     omega_v=omega*accu_tb1';    
     accu_tb=accu_tb.*inverse_tb(1:t+1);
     accu_tb1=accu_tb1.*inverse_tb;    
     
     if(error(1,n-i+1) == 1)
-        ev=(omega_v/lamda_ov)*alpha^(1-i);
+        ev=(omega_v/lamda_ov)*alpha^(b*(1-i));%alpha^(1-i)
         error(2, n-i+1)=double(ev.x);
     end
 end
@@ -138,5 +147,5 @@ disp(['the received code is         : ', num2str(double(reccode.x))]);
 found = find(error(1,:)~=0);
 disp(['found error(s) at location(s): ',num2str(found)]);
 disp(['calulated error magnitudes   : ', num2str(error(2,found))]);
-reccode(found) = reccode(found) - gf(error(2,found),4);
+reccode(found) = reccode(found) - gf(error(2,found),m);
 disp(['the corrected code is        : ', num2str(double(reccode.x))]);
