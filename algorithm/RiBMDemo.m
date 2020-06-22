@@ -17,17 +17,22 @@
 %--------------------------------------------------------------------------
 close all; clear all;
 %parameters
-n = 31;
-k = 19;
-m = 5;
+n = 5;%31;
+k = 3;%19;
+m = 6;
 b = 0; %m0
+
+nn = 2^m-1;%2^floor(log2(n)+1)-1;
+kk = k+(nn-n);
+
 %message = 1:9;         % message
-message = [20,4,5,17,22,1,2,28,3,17,6,7,10,31,11,20,4,5,1];  % message (all zeros is a codeword by definition)
-loc = [1,2,3];          % error locations
-err = [5,3,2];         % error values
+%message = [20,4,5,17,22,1,2,28,3,17,6,7,10,31,11,20,4,5,1];  % message (all zeros is a codeword by definition)
+message = [55,54,56];
+loc = [1];          % error locations
+err = [2];         % error values
 %RS parameters
 pp = primpoly(m);
-[g,t] = rsgenpoly(n,k,pp,b);
+[g,t] = rsgenpoly(nn,kk,pp,b);
 %[g,t] = rsgenpoly(63,61,pp,1);
 %pp = primpoly(6);
 %m = log2(n+1);
@@ -90,10 +95,13 @@ omega = delta(1:t);
 % inverse table
 inverse_tb = gf(zeros(1, t+1), m, pp);
 for i=1:t+1
-    inverse_tb(i) = alpha^(i-1);
+    inverse_tb(i) = alpha^((i-1));
 end
 lamda_v=gf(0, m, pp);
 accu_tb=gf(ones(1, t+1), m,pp);
+for i=1:t+1
+    accu_tb(i) = alpha^((i-1)*(nn-n));
+end
 zero = gf(0, m, pp);
 error = zeros(2,n);
 for i=1:n
