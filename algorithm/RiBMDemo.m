@@ -27,9 +27,9 @@ kk = k+(nn-n);
 
 %message = 1:9;         % message
 %message = [20,4,5,17,22,1,2,28,3,17,6,7,10,31,11,20,4,5,1];  % message (all zeros is a codeword by definition)
-message = [55,54,56];
+message = [3,14,62];
 loc = [1];          % error locations
-err = [2];         % error values
+err = [4];         % error values
 %RS parameters
 pp = primpoly(m);
 [g,t] = rsgenpoly(nn,kk,pp,b);
@@ -95,18 +95,19 @@ omega = delta(1:t);
 % inverse table
 inverse_tb = gf(zeros(1, t+1), m, pp);
 for i=1:t+1
-    inverse_tb(i) = alpha^((i-1));
+    inverse_tb(i) = alpha^((i-1));%alpha^(i-1);
 end
 lamda_v=gf(0, m, pp);
 accu_tb=gf(ones(1, t+1), m,pp);
 for i=1:t+1
-    accu_tb(i) = alpha^((i-1)*(nn-n));
+    accu_tb(i) = alpha^((i-1)*(nn-n+1));
 end
 zero = gf(0, m, pp);
 error = zeros(2,n);
 for i=1:n
+    %accu_tb=accu_tb.*inverse_tb;
+    lamda_v=lamda*accu_tb';
     accu_tb=accu_tb.*inverse_tb;
-    lamda_v=lamda*accu_tb';   
     if(lamda_v==zero)
         error(1,i)=1;
     end
@@ -128,23 +129,32 @@ end
 %inverse table
 inverse_tb = gf(zeros(1, t+1), m, pp);
 for i=1:3*t
-    inverse_tb(i) = alpha^(-i+1);%alpha^(-i+1)
+    inverse_tb(i) = alpha^(i-1);%alpha^(-i+1)
 end
 lamda_ov=gf(0, m, pp);
 omega_v=gf(0, m, pp);
-accu_tb=gf(ones(1, t+1), m,pp);
+%accu_tb=gf(ones(1, t+1), m,pp);
 accu_tb1=gf(ones(1, 3*t), m, pp);
+% for i=1:t+1
+%     accu_tb(i) = alpha^((i-1)*(nn-n+1));
+% end
+for i=1:t*3
+    accu_tb1(i) = alpha^((i-1)*(nn-n+1));
+end
 % shift the exponents of omega by 2*t for RiBM (equation 12 in paper)
 omega = [zeros(1,2*t),omega];
 for i=1:n
-    lamda_ov=lamda(2:2:odd+1)*accu_tb(2:2:odd+1)';
+    lamda_ov=lamda(2:2:odd+1)*accu_tb1(2:2:odd+1)';
     omega_v=omega*accu_tb1';    
-    accu_tb=accu_tb.*inverse_tb(1:t+1);
+    %accu_tb=accu_tb.*inverse_tb(1:t+1);
     accu_tb1=accu_tb1.*inverse_tb;    
-    
-    if(error(1,n-i+1) == 1)
-        ev=(omega_v/lamda_ov)*alpha^(b*(1-i));%alpha^(1-i)
-        error(2, n-i+1)=double(ev.x);
+     
+    ev=(omega_v/lamda_ov)*alpha^(b*(nn-n+i));
+    %if(error(1,n-i+1) == 1)
+    if(error(1,i) == 1)
+        %ev=(omega_v/lamda_ov)*alpha^(b*(nn-n+i));%alpha^b*(1-i)
+        %error(2, n-i+1)=double(ev.x);
+        error(2,i) = double(ev.x);
     end
 end
 %--------------------------------------------------------------------------
